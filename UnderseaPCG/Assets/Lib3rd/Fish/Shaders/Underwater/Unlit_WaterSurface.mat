@@ -1,0 +1,73 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Unlit_WaterSurface
+  m_Shader: {fileID: 4800000, guid: d40d3b61a5b5f03459751e7f917d2f1b, type: 3}
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: 2500
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _CubeMap:
+        m_Texture: {fileID: 8900000, guid: ef7513b54a0670140b9b967af7620563, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NoiseTex:
+        m_Texture: {fileID: 2800000, guid: dc782f5553d26c44b82bca53adb0b58a, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NormalTex:
+        m_Texture: {fileID: 2800000, guid: 5af49cf9821f81a458a0f447eaae1fd0, type: 3}
+        m_Scale: {x: 2, y: 2}
+        m_Offset: {x: 0, y: 0}
+    - _RampTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RefractionTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _WaveMap:
+        m_Texture: {fileID: 2800000, guid: 5af49cf9821f81a458a0f447eaae1fd0, type: 3}
+        m_Scale: {x: 4, y: 4}
+        m_Offset: {x: 0, y: 0}
+    - _WaveTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _BumpFactor: 0.665
+    - _DepthFactor: 0.343
+    - _Distortion: 22.4
+    - _FresnelDistanceFactor: 29.7
+    - _FresnelFactor: 2.92
+    - _FresnelPower: 30
+    - _RefractionStrength: 0.68
+    - _SpecRotate: 75
+    - _SwormFlowFactor: 17.8
+    - _Test: 0.818
+    - _TimeScale: 0.51
+    - _WaveStrength: 6.4
+    - _WaveXSpeed: 0.42
+    - _WaveYSpeed: 0.57
+    m_Colors:
+    - _Color: {r: 0.454902, g: 0.7411765, b: 0.82745105, a: 1}
+  m_BuildTextureStacks: []

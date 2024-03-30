@@ -1,0 +1,69 @@
+#pragma kernel Cellular
+#pragma kernel DensityModify
+
+#include "/Includes/Density.compute"
+#include "/Includes/Noise.compute"
+
+StructuredBuffer<float> maskPoints;
+
+int GetSurroundingWallCount( int gridX, int gridY, int gridZ) {
+    int wallCount = 0;
+    for (int neighbourX = gridX - 1; neighbourX <= gridX + 1; neighbourX ++) {
+        for (int neighbourY = gridY - 1; neighbourY <= gridY + 1; neighbourY ++) {
+            for (int neighbourZ = gridZ - 1; neighbourZ <= gridZ + 1; neighbourZ ++) {
+                if (neighbourX >= 0 && neighbourX < numPointsPerAxis && neighbourY >= 0 && neighbourY < numPointsPerAxis && neighbourZ >= 0 && neighbourZ < numPointsPerAxis) {
+                    if (neighbourX != gridX || neighbourY != gridY || neighbourZ != gridZ) {
+                        float4 value = points[indexFromCoord(neighbourX,neighbourY,neighbourZ)];
+                        wallCount += value.w>0.1?1:0;
+                    }
+                }
+                else {
+                    wallCount ++;
+                }
+            }
+        }
+    }
+
+    return wallCount;
+}
+
+
+[numthreads(numThreads,numThreads,numThreads)]
+void Cellular (int3 id : SV_DispatchThreadID)
+{
+    if (id.x >= numPointsPerAxis || id.y >= numPointsPerAxis || id.z >= numPointsPerAxis) {
+        return;
+    }
+
+    if (id.x < 3 || id.y < 3 || id.z < 3) {
+        return;
+    }
+    if (id.x > numPointsPerAxis-3 || id.y > numPointsPerAxis-3 || id.z > numPointsPerAxis-3) {
+        return;
+    }
+
+    int index = indexFromCoord(id.x,id.y,id.z);
+
+    int wallCount = GetSurroundingWallCount(id.x,id.y,id.z);
+    float4 value = points[index];
+    float finalVal = wallCount>18?value.w:0;
+    float3 pos = float3(value.x,value.y,value.z);
+    points[index] = float4(pos, finalVal);
+    
+}
+
+[numthreads(numThreads,numThreads,numThreads)]
+void DensityModify (int3 id : SV_DispatchThreadID)
+{
+    if (id.x >= numPointsPerAxis || id.y >= numPointsPerAxis || id.z >= numPointsPerAxis) {
+        return;
+    }
+    
+    int index = indexFromCoord(id.x,id.y,id.z);
+    float4 value = points[index];
+    float mask = maskPoints[index];
+    float finalVal = value.w;
+    finalVal = mask*finalVal;
+    float3 pos = float3(value.x,value.y,value.z);
+    points[index] = float4(pos, finalVal);
+}
