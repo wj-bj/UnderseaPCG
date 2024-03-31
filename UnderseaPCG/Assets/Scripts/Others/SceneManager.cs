@@ -112,12 +112,12 @@ public class SceneManagerEditor : Editor
 
         SceneManager script = (SceneManager)target;
 
-        if (GUILayout.Button("点击我"))
+        if (GUILayout.Button("Generate Scene"))
         {
             script.GenerateScene();
         }
 
-        if (GUILayout.Button("植被"))
+        if (GUILayout.Button("Generate Vegetaion"))
         {
             script.decorationGenerator.GenerateDecorations(script.mapGenerator.getDecorationMap());
         }
