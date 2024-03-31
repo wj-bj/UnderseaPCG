@@ -915,6 +915,7 @@ GameObject:
   - component: {fileID: 1227529325540440611}
   - component: {fileID: 5304358863290616587}
   - component: {fileID: 1588345473182627914}
+  - component: {fileID: 587158128063205821}
   m_Layer: 5
   m_Name: UICanvas
   m_TagString: Untagged
@@ -1025,6 +1026,19 @@ MonoBehaviour:
   GenerateButton: {fileID: 5815243037538492275}
   DensityScrollbar: {fileID: 3725107536010388783}
   pos2DImage: {fileID: 6509234690088777085}
+--- !u!114 &587158128063205821
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7237891906957915492}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dcc371ce5306a7f4091c2398673a7f8e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  slider: {fileID: 3725107536010388783}
 --- !u!1 &7535256238341459425
 GameObject:
   m_ObjectHideFlags: 0
@@ -1090,7 +1104,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Generate
+  m_text: Reload
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}

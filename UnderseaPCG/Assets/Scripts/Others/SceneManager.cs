@@ -72,7 +72,7 @@ public class SceneManager : MonoBehaviour
     }
 
     public IEnumerator AsycGenerateScene(){
-        WaitForSeconds wait = new WaitForSeconds(0.2f);
+        WaitForSeconds wait = new WaitForSeconds(0.1f);
         if(mapGenerator != null){
             mapGenerator.GenerateMap();
             yield return null;
