@@ -34,7 +34,7 @@ public class AgentController : MonoBehaviour
     }
 
   
-
+    // Initialize agent with map
     public void InitializeAgent(int[,] map)
     {
         this.map = map;
@@ -57,6 +57,7 @@ public class AgentController : MonoBehaviour
         }
     }
 
+    // Initialize fish agent, set path control points on the map
     void InitializeFish()
     {
         var fishScript = GetComponentInChildren<FishMoveUnit>();
@@ -83,6 +84,7 @@ public class AgentController : MonoBehaviour
         }
     }
 
+    // Initialize driver agent, set path control points on the map
     void InitializeDriver()
     {
          var script = GetComponentInChildren<DiverMoveUnit>();
@@ -117,6 +119,7 @@ public class AgentController : MonoBehaviour
 
     }
 
+    // Initialize loot agent, set path control points on the map
     void InitializeLoot()
     {
         var script = GetComponentInChildren<LootMoveUnit>();
@@ -149,6 +152,9 @@ public class AgentController : MonoBehaviour
             script.desPoints = vecPaths;
         }
     }
+
+
+
 
   
 }

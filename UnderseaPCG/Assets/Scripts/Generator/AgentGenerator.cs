@@ -7,7 +7,7 @@ public class AgentGenerator : MonoBehaviour
 {
     public GameObject[] agents;
 
-   
+ 
 
     // Start is called before the first frame update
     void Start()
@@ -64,11 +64,7 @@ public class AgentGenerator : MonoBehaviour
                     //add noise to the position
                     pos += new Vector3(Random.Range(-1f, 1f), 0, Random.Range(-1f, 1f));
                     agentObj.GetComponent<AgentController>().InitializeAgent(map);   
-                    // if (Physics.Raycast(new Vector3(pos.x, 20, pos.z), Vector3.down, out hit, 200))
-                    // {
-                    //         pos = hit.point;
-                                    
-                    // }
+   
                   
                     countAngent--;
                    

@@ -20,6 +20,9 @@ public class CameraController : MonoBehaviour
     private float xRotation = 0f; // 用于累计垂直方向上的旋转
     private float yRotation = 0f;
 
+    [HideInInspector]
+    public List<GameObject> agentList;
+
     
     void LateUpdate()
     {
@@ -82,5 +85,16 @@ public class CameraController : MonoBehaviour
     {
 
        
+    }
+
+    public void RegisterAgent(GameObject agent)
+    {
+        if(agentList == null)
+            agentList = new List<GameObject>();
+        agentList.Add(agent);
+    }
+    public void ClearAgents()
+    {
+        agentList.Clear();
     }
 }

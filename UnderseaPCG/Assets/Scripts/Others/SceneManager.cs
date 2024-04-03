@@ -9,22 +9,23 @@ public class SceneManager : MonoBehaviour
     public MeshGenerator meshGenerator;
     public DecorationGenerator decorationGenerator;
     public AgentGenerator agentGenerator;
-    // Start is called before the first frame update
+   
 
     private static SceneManager _instance;
 
+    // Singleton
     public static SceneManager Instance
     {
         get
         {
             if (_instance == null)
             {
-                // 查找现有的实例
+                //Find Scene Manager
                 _instance = FindObjectOfType<SceneManager>();
 
                 if (_instance == null)
                 {
-                    // 创建新的GameObject，并添加Singleton组件
+                    // Create Singleton Object
                     GameObject singletonObject = new GameObject();
                     _instance = singletonObject.AddComponent<SceneManager>();
                     singletonObject.name = " SceneManager";
@@ -66,7 +67,7 @@ public class SceneManager : MonoBehaviour
     }
 
     public void GenerateScene(){
-        
+        //Generate Scene Asynchronously
         StartCoroutine(AsycGenerateScene());
        
     }
@@ -108,7 +109,7 @@ public class SceneManagerEditor : Editor
 {
     public override void OnInspectorGUI()
     {
-        base.OnInspectorGUI(); // 显示默认的属性
+        base.OnInspectorGUI(); 
 
         SceneManager script = (SceneManager)target;
 

@@ -175,7 +175,11 @@ public class FishBTController : AgentController
 
             BTree = t;
             #if UNITY_EDITOR
-            Debugger debugger = (Debugger)this.gameObject.AddComponent(typeof(Debugger));
+            Debugger debugger = this.gameObject.GetComponent<Debugger>();
+            if(debugger==null){
+                debugger = (Debugger)this.gameObject.AddComponent(typeof(Debugger));
+            }
+            
             debugger.BehaviorTree = BTree;
             #endif
             

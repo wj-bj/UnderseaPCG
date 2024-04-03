@@ -35,13 +35,7 @@ public class MapGenerator : MonoBehaviour {
 
 
 	void Update() {
-		// if (Input.GetMouseButtonDown(1)) {
-		// 	GenerateDensityMap();
-		// 	GenerateReefMap();
-		// }
-		// if (Input.GetMouseButtonDown(0)) {
-		// 	SmoothMap(ref this.densityMap);
-		// }
+
 		if(settingsUpdated) {
 			GenerateDensityMap();
 			GenerateReefMap();
@@ -52,6 +46,7 @@ public class MapGenerator : MonoBehaviour {
         settingsUpdated = true;
     }
 
+	// map for density, like hills, mountains, etc. higher density means higher elevation
 	void GenerateDensityMap() {
 		densityMap = new int[width,height];
 		RandomFillMap(ref densityMap,seed,densityFill);
@@ -60,6 +55,8 @@ public class MapGenerator : MonoBehaviour {
 			SmoothMap(ref densityMap);
 		}
 	}
+
+	// map for decoration, like rocks, corals, etc.
 	void GenerateReefMap() {
 		reefMap = new int[width,height];
 		RandomFillMap(ref reefMap,seed+1,decorationFill);
@@ -69,7 +66,7 @@ public class MapGenerator : MonoBehaviour {
 		}
 	}
 
-
+	// fill the map with random values, 1 for occupied, 0 for empty
 	void RandomFillMap(ref int[,] map, int seed = 0, int fillthreshold = 50) {
 		if (useRandomSeed) {
 			seed = (int)Time.time;
@@ -106,6 +103,7 @@ public class MapGenerator : MonoBehaviour {
 		map = t_map;
 	}
 
+	// count the number of occupied grids around the current grid
 	int GetSurroundingWallCount(int[,] map, int gridX, int gridY) {
 		int wallCount = 0;
 		for (int neighbourX = gridX - 1; neighbourX <= gridX + 1; neighbourX ++) {

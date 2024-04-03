@@ -80,6 +80,15 @@ Given that the most of computation for animation and triangulisation occurs on G
 
 
 ## Interactive Agents
+The Agent behaviour is controlled by two types of components: AngentController and its heritance class(fish, mermaid, diver) have Behaviour tree component which affect the logic part. MoveUnit is reponsible for the movement of agent, including avoid, flee, path, wander, etc.
+<p align="center">
+    <img src="pics/fish_BT_1.png" height="200" width="375">
+    <img src="pics/mermaid_moveunit_1.png" height="200" width="375">
+</p>
+<p align="center">
+    <b>Fig. 3: Behavior tree and moveunit</b>
+</p>
+
 ### Diver
 
 

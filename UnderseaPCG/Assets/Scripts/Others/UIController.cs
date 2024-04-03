@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -11,11 +12,14 @@ public class UIController : MonoBehaviour
     public Image MapImage;
 
     public Button GenerateButton;
+    public Button SwitchRoleButton;
     public Slider DensityScrollbar;
     public Image pos2DImage;
     bool isManual = false;
     bool isMap = false;
     Texture2D texture;
+
+    private int currentRole = 0;
     
     // Start is called before the first frame update
     void Start()
@@ -24,7 +28,9 @@ public class UIController : MonoBehaviour
         MapButton.onClick.AddListener(onClickMapButton);
         DensityScrollbar.onValueChanged.AddListener(UpdateDensity);
         GenerateButton.onClick.AddListener(OnClickGenerateButton);
+        SwitchRoleButton.onClick.AddListener(OnClickSwitchRoleButton);
 
+        currentRole = 0;
         MapImage.gameObject.SetActive(false);
     }
 
@@ -113,12 +119,19 @@ public class UIController : MonoBehaviour
         
     }
 
+    //re-generate the scene including the map, mesh, decorations, and npc
     void OnClickGenerateButton()
     {
+        if(isManual)
+            onClickAutoButton();
         
         SceneManager.Instance.GenerateScene();
+        isManual = false;
+        currentRole = 0;
+        SwitchCameraFollow(currentRole);
     }
 
+    // update location on minimap
     void UpdateLocationOnMap()
     {
         var cam = Camera.main.gameObject;
@@ -126,9 +139,33 @@ public class UIController : MonoBehaviour
         int width = SceneManager.Instance.mapGenerator.width;
         int height = SceneManager.Instance.mapGenerator.height;
         Vector3 rangeXY = new Vector2(width/2, height/2);
-        // Vector3 pos = new Vector3(-width/2 + x + .5f,0, -height/2 + y+.5f);
+        
         Vector2 pos2D = new Vector2(pos.x/rangeXY.x, pos.z/rangeXY.y);
         pos2DImage.rectTransform.anchoredPosition = pos2D*100;
 
     }
+
+    void OnClickSwitchRoleButton()
+    {
+        currentRole = (currentRole + 1) % 3;
+        SwitchCameraFollow(currentRole);
+    
+    }
+
+    void SwitchCameraFollow(int role){
+        if(currentRole== 0){
+            SwitchRoleButton.GetComponentInChildren<TMP_Text>().text = "Diver";
+            Camera.main.gameObject.GetComponent<CameraController>().target = GameObject.FindAnyObjectByType<DiverMoveUnit>().transform;
+        }
+        else if(currentRole == 1){
+            SwitchRoleButton.GetComponentInChildren<TMP_Text>().text = "Fish";
+            Camera.main.gameObject.GetComponent<CameraController>().target = GameObject.FindAnyObjectByType<FishMoveUnit>().transform;
+        }
+        else if (currentRole == 2)
+        {
+            SwitchRoleButton.GetComponentInChildren<TMP_Text>().text = "Mermaid";
+            Camera.main.gameObject.GetComponent<CameraController>().target = GameObject.FindAnyObjectByType<MermaidMoveUnit>().transform;
+        }
+    }
+
 }
