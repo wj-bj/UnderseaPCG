@@ -1,7 +1,7 @@
 # UnderseaPCG
 The project is to construct undersea world by PCG methods
 ## Video Demonstration
-* The video demonstration is available to view [here](https://youtu.be/Pa8juTHpo8c).
+* The video demonstration is available to view [here](https://youtu.be/5JS3QZU3JSY).
 ## Introduction
 <p align="center">
     <img src="pics/Sequence_1.gif" height="250" width="450">
@@ -80,7 +80,7 @@ Given that the most of computation for animation and triangulisation occurs on G
 
 
 ## Interactive Agents
-The Agent behaviour is controlled by two types of components: AngentController and its heritance class(fish, mermaid, diver) have Behaviour tree component which affect the logic part. MoveUnit is reponsible for the movement of agent, including avoid, flee, path, wander, etc.
+The behavior of the agent is governed by two main types of components: AgentController and its inherited classes (Fish, Mermaid, Diver). These classes utilize a BehaviourTree component to handle the logic aspect. Additionally, there's a MoveUnit component responsible for managing the agent's movement, which includes functionalities such as avoidance, fleeing, pathfinding, wandering, and more.
 <p align="center">
     <img src="pics/fish_BT_1.png" height="200" width="375">
     <img src="pics/mermaid_moveunit_1.png" height="200" width="375">
