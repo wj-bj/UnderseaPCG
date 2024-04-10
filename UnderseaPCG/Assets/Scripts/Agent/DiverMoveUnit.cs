@@ -39,6 +39,7 @@ public class DiverMoveUnit : MonoBehaviour
         
     }
 
+    // The agent can move by player control or follow the paths created when initialized
     void FixedUpdate()
     {
         
@@ -54,6 +55,7 @@ public class DiverMoveUnit : MonoBehaviour
         }
     }
 
+    // follow the path
     void UpdateDefaultBehaviour()
     {
             path.Draw();

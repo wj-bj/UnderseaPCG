@@ -25,7 +25,8 @@ public class FishBTController : AgentController
         utilityScores.Add(0);
     }
 
-    // Update is called once per frame
+    // Update the Utility Scores and decide the next action at each time interval
+    // Select differnt behavior tree based on the action
     void Update()
     {
         UpdateScores();
@@ -54,6 +55,7 @@ public class FishBTController : AgentController
         UpdateScores();
     }
 
+    // Update the blackboard info for the behavior tree
     void UpdateBTInfo()
     {
         var obj = GameObject.FindGameObjectWithTag("Player");
@@ -87,7 +89,8 @@ public class FishBTController : AgentController
     }
 
 
-
+    // update the score based on the distance to the player
+    // the closer the player, the higher the posibility the fish will chase the player
     private void UpdateScores()
     {
         var obj = GameObject.FindGameObjectWithTag("Player");
@@ -146,7 +149,7 @@ public class FishBTController : AgentController
         
                             }) { Label = "Follow" },
                             new Wait(WAIT_TIME));
-            // Wrap behaviour in blackboard update service
+         
         Node service = new Service(1f, UpdateBTInfo, sel);
         Root root = new Root(service);
         return root;
@@ -160,7 +163,7 @@ public class FishBTController : AgentController
         
                             }) { Label = "Path" },
                             new Wait(WAIT_TIME));
-            // Wrap behaviour in blackboard update service
+       
         Node service = new Service(1f, UpdateBTInfo, sel);
         Root root = new Root(service);
         return root;

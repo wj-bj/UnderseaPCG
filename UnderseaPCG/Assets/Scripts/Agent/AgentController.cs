@@ -34,7 +34,7 @@ public class AgentController : MonoBehaviour
     }
 
   
-    // Initialize agent with map
+    // Initialize agent with map data
     public void InitializeAgent(int[,] map)
     {
         this.map = map;

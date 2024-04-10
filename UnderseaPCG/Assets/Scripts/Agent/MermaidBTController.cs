@@ -64,6 +64,7 @@ public class MermaidBTController : AgentController
         }
     }
 
+    // the mermaid will follow the loot when the loot is near, otherwise it will wander
     Root CreateBT(){
         Root root = new Root(
             new Service(1f, UpdateBTInfo,

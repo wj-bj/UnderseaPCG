@@ -5,7 +5,7 @@ using UnityMovementAI;
 
 public class LootMoveUnit : MonoBehaviour
 {
-    // Start is called before the first frame update
+    
     public Vector3[] desPoints;
     public int nextPoint = 0;
 
@@ -30,6 +30,7 @@ public class LootMoveUnit : MonoBehaviour
 
     }
 
+    // When the mermaid is near, the loot will move to the next place
     void OnTriggerEnter(Collider other)
     {
         if (other.gameObject.GetComponent<MermaidMoveUnit>() != null)

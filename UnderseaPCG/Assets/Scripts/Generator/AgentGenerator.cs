@@ -36,7 +36,7 @@ public class AgentGenerator : MonoBehaviour
         }
 
     }
-
+    // for each prefab in the agents array, generate a random position on the map
     public void GenerateAgents(int[,] map)
     {
         ClearAgents();
