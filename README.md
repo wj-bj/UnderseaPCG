@@ -110,3 +110,10 @@ The behavior of the agent is governed by two main types of components: AgentCont
 * Improve terrain shader
 * Improve vegetaion animation and shader
 * Add more types of creatures
+
+## Reference
+* The boid system is self-work a few years ago, which is inpired by Sebastian Lague.  [here](https://www.youtube.com/watch?v=bqtqltqcQhw)
+
+* The marching cube algorithm and submarine asset from his tutorial. [here](https://www.youtube.com/watch?v=M3iI2l0ltbE&t=2s)
+* Some marterials come fom Sketchfab and Unity assetstore
+* The Behavior tree and steering scripts are offered from the lab of the module
