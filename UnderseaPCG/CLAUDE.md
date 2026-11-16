@@ -68,6 +68,8 @@
 
 **注意**：`SetupVegetation()` 和 `SetupFish()` 会用代码里的默认值覆盖场景里的层和鱼种列表。如果用户在 Inspector 里调过参数，重新执行会丢失这些调整；要改默认值就改这个脚本。
 
+汇报素材用的两个工具（只在 Play 模式下生效，不改场景文件）：`Assets/UnderseaV2/Editor/ShowcaseStages.cs` 的 `SetStage(0–6)` 按阶段逐层开关各系统、`MakeCameras()` 建固定机位，用来拍同机位的前后对比图；`ShowcaseRecorder.cs` 用 Unity Recorder（`com.unity.recorder` 5.1.8）从主相机录 mp4。素材输出在 `Screenshots/showcase/`。
+
 `Assets/Editor/UrpMigration.cs` 是 URP 迁移时的一次性脚本，`Assets/Settings/MaterialSnapshot_BuiltIn.txt` 是迁移前的材质记录，都可以删。
 
 ## 对共用代码的改动
