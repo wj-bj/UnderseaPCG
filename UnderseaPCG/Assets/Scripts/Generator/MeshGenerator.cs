@@ -43,6 +43,12 @@ public class MeshGenerator : MonoBehaviour {
     [Range (0, 10)]
     public int cellularSteps = 0;
 
+    [Header ("Surface Quality")]
+    [Tooltip ("Use normals computed on the GPU from the density field instead of per-face normals.")]
+    public bool gradientNormals = false;
+    [Tooltip ("Blend the 2D map mask smoothly instead of cutting the terrain off in hard steps.")]
+    public bool smoothMask = false;
+
 
     GameObject chunkHolder;
     const string chunkHolderName = "Chunks Holder";
@@ -58,6 +64,13 @@ public class MeshGenerator : MonoBehaviour {
     private int[,] densityMask;
 
     bool settingsUpdated;
+
+    // Raised after the chunk meshes have been rebuilt.
+    public event System.Action MeshesUpdated;
+
+    // Density field of the most recently generated chunk (xyz = position, w = density).
+    // Only kept alive in Play mode; null or released in the editor.
+    public ComputeBuffer PointsBuffer => pointsBuffer;
 
     void Awake () {
         if (Application.isPlaying && !fixedMapSize) {
@@ -100,6 +113,7 @@ public class MeshGenerator : MonoBehaviour {
             ReleaseBuffers ();
         }
 
+        MeshesUpdated?.Invoke ();
     }
 
     public void UpdateCollider(){
@@ -233,19 +247,25 @@ public class MeshGenerator : MonoBehaviour {
         mesh.Clear ();
 
         var vertices = new Vector3[numTris * 3];
+        var normals = new Vector3[numTris * 3];
         var meshTriangles = new int[numTris * 3];
 
         for (int i = 0; i < numTris; i++) {
             for (int j = 0; j < 3; j++) {
                 meshTriangles[i * 3 + j] = i * 3 + j;
                 vertices[i * 3 + j] = tris[i][j];
+                normals[i * 3 + j] = tris[i].Normal (j);
             }
         }
         mesh.vertices = vertices;
         mesh.triangles = meshTriangles;
 
-        mesh.RecalculateNormals ();
-        SmoothMeshNormals(mesh);
+        if (gradientNormals) {
+            mesh.normals = normals;
+        } else {
+            mesh.RecalculateNormals ();
+            SmoothMeshNormals(mesh);
+        }
     
 
         //
@@ -282,7 +302,8 @@ public class MeshGenerator : MonoBehaviour {
             if (Application.isPlaying) {
                 ReleaseBuffers ();
             }
-            triangleBuffer = new ComputeBuffer (maxTriangleCount, sizeof (float) * 3 * 3, ComputeBufferType.Append);
+            // 3 vertices + 3 normals per triangle
+            triangleBuffer = new ComputeBuffer (maxTriangleCount, sizeof (float) * 3 * 6, ComputeBufferType.Append);
             pointsBuffer = new ComputeBuffer (numPoints, sizeof (float) * 4);
             triCountBuffer = new ComputeBuffer (1, sizeof (int), ComputeBufferType.Raw);
             maskpointsBuffer = new ComputeBuffer (numPoints, sizeof (float));
@@ -377,6 +398,20 @@ public class MeshGenerator : MonoBehaviour {
         public Vector3 a;
         public Vector3 b;
         public Vector3 c;
+        public Vector3 na;
+        public Vector3 nb;
+        public Vector3 nc;
+
+        public Vector3 Normal (int i) {
+            switch (i) {
+                case 0:
+                    return na;
+                case 1:
+                    return nb;
+                default:
+                    return nc;
+            }
+        }
 
         public Vector3 this [int i] {
             get {
@@ -433,6 +468,10 @@ public class MeshGenerator : MonoBehaviour {
                         float u = (float)x/numPointsPerAxis;
                         float v = (float)z/numPointsPerAxis;
 
+                        if (smoothMask) {
+                            instanceData[index] = Mathf.Lerp (0.05f, 1f, SampleMaskSmooth (map, u * (width - 1), v * (height - 1)));
+                            continue;
+                        }
                         int ux = (int)(u * (width - 1));
                         int vy = (int)(v * (height - 1));
                         instanceData[index] = (map[ux,vy]==1)?1f:0.05f;
@@ -449,6 +488,31 @@ public class MeshGenerator : MonoBehaviour {
         }
         maskpointsBuffer.SetData(instanceData);
         
+    }
+
+    // Bilinear sample of the 0/1 map after a 3x3 box blur, so the mask has soft edges.
+    static float SampleMaskSmooth (int[,] map, float x, float y) {
+        int x0 = Mathf.FloorToInt (x);
+        int y0 = Mathf.FloorToInt (y);
+        float fx = x - x0;
+        float fy = y - y0;
+        float a = Mathf.Lerp (BlurredMask (map, x0, y0), BlurredMask (map, x0 + 1, y0), fx);
+        float b = Mathf.Lerp (BlurredMask (map, x0, y0 + 1), BlurredMask (map, x0 + 1, y0 + 1), fx);
+        return Mathf.SmoothStep (0f, 1f, Mathf.Lerp (a, b, fy));
+    }
+
+    static float BlurredMask (int[,] map, int x, int y) {
+        int w = map.GetLength (0);
+        int h = map.GetLength (1);
+        float sum = 0;
+        for (int dy = -1; dy <= 1; dy++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                int sx = Mathf.Clamp (x + dx, 0, w - 1);
+                int sy = Mathf.Clamp (y + dy, 0, h - 1);
+                sum += map[sx, sy] == 1 ? 1f : 0f;
+            }
+        }
+        return sum / 9f;
     }
 
     public void generateMaskPoints( int[,] map){

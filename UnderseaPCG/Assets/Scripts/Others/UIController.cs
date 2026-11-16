@@ -159,7 +159,15 @@ public class UIController : MonoBehaviour
         }
         else if(currentRole == 1){
             SwitchRoleButton.GetComponentInChildren<TMP_Text>().text = "Fish";
-            Camera.main.gameObject.GetComponent<CameraController>().target = GameObject.FindAnyObjectByType<FishMoveUnit>().transform;
+            var leader = GameObject.FindAnyObjectByType<FishMoveUnit>();
+            Transform fishTarget = leader != null ? leader.transform : null;
+            if (fishTarget == null)
+            {
+                var school = GameObject.FindAnyObjectByType<FishSchoolSystem>();
+                if (school != null) fishTarget = school.FollowTarget;
+            }
+            if (fishTarget != null)
+                Camera.main.gameObject.GetComponent<CameraController>().target = fishTarget;
         }
         else if (currentRole == 2)
         {

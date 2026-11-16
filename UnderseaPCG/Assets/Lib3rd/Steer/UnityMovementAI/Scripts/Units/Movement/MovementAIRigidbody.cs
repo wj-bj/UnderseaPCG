@@ -173,7 +173,7 @@ namespace UnityMovementAI
             /* If the character can't fly then find the current the ground normal */
             if (is3D && !canFly)
             {
-                bool shouldFollowGround = !rb3D.useGravity || rb3D.velocity.y <= 0;
+                bool shouldFollowGround = !rb3D.useGravity || rb3D.linearVelocity.y <= 0;
 
                 /* Reset to default values */
                 wallNormal = Vector3.zero;
@@ -271,7 +271,7 @@ namespace UnityMovementAI
              * since we could have been falling and now found ground so all the downward y velocity is not
              * part of our movement speed. Technically I am projecting the actual velocity onto the ground
              * plane rather than finding the real movement velocity's speed.*/
-            rb3D.velocity = DirOnPlane(rb3D.velocity, movementNormal) * Velocity.magnitude;
+            rb3D.linearVelocity = DirOnPlane(rb3D.linearVelocity, movementNormal) * Velocity.magnitude;
         }
 
         bool IsWall(Vector3 surfNormal)
@@ -282,12 +282,12 @@ namespace UnityMovementAI
 
         void LimitMovementOnSteepSlopes()
         {
-            Vector3 startVelocity = rb3D.velocity;
+            Vector3 startVelocity = rb3D.linearVelocity;
 
             /* If we are currently on a wall then limit our movement */
-            if (wallNormal != Vector3.zero && IsMovingInto(rb3D.velocity, wallNormal))
+            if (wallNormal != Vector3.zero && IsMovingInto(rb3D.linearVelocity, wallNormal))
             {
-                rb3D.velocity = LimitVelocityOnWall(rb3D.velocity, wallNormal);
+                rb3D.linearVelocity = LimitVelocityOnWall(rb3D.linearVelocity, wallNormal);
             }
             /* Else we have no wall or we are moving away from the wall so we will no longer be touching it */
             else
@@ -298,8 +298,8 @@ namespace UnityMovementAI
             /* Check if we are moving into a wall */
             for (int i = 0; i < 2; i++)
             {
-                Vector3 direction = rb3D.velocity.normalized;
-                float dist = rb3D.velocity.magnitude * Time.deltaTime;
+                Vector3 direction = rb3D.linearVelocity.normalized;
+                float dist = rb3D.linearVelocity.magnitude * Time.deltaTime;
 
                 Vector3 origin = ColliderPosition;
                 countDebug++;
@@ -329,7 +329,7 @@ namespace UnityMovementAI
                     float moveUpDist = Mathf.Max(0, hitInfo.distance);
                     rb3D.MovePosition(rb3D.position + (direction * moveUpDist));
 
-                    Vector3 projectedVel = LimitVelocityOnWall(rb3D.velocity, hitInfo.normal);
+                    Vector3 projectedVel = LimitVelocityOnWall(rb3D.linearVelocity, hitInfo.normal);
                     Vector3 projectedStartVel = LimitVelocityOnWall(startVelocity, hitInfo.normal);
 
                     /* If we have a previous wall. And if the latest velocity is moving into the previous wall or if 
@@ -340,16 +340,16 @@ namespace UnityMovementAI
                         Vector3 vel = Vector3.zero;
                         if (rb3D.useGravity)
                         {
-                            vel.y = rb3D.velocity.y;
+                            vel.y = rb3D.linearVelocity.y;
                         }
-                        rb3D.velocity = vel;
+                        rb3D.linearVelocity = vel;
 
                         break;
                     }
                     /* Else move along the wall */
                     else
                     {
-                        rb3D.velocity = projectedVel;
+                        rb3D.linearVelocity = projectedVel;
 
                         /* Make this wall the previous wall */
                         wallNormal = hitInfo.normal;
@@ -398,10 +398,10 @@ namespace UnityMovementAI
                 Vector3 downSlope = Vector3.Cross(rightSlope, planeNormal);
 
                 /* Keep any downward movement (like gravity) */
-                float yComponent = Mathf.Min(0f, rb3D.velocity.y);
+                float yComponent = Mathf.Min(0f, rb3D.linearVelocity.y);
 
                 /* Project the remaining movement on to the wall */
-                Vector3 newVel = rb3D.velocity;
+                Vector3 newVel = rb3D.linearVelocity;
                 newVel.y = 0;
                 newVel = Vector3.ProjectOnPlane(newVel, planeNormal);
 
@@ -428,9 +428,9 @@ namespace UnityMovementAI
             if (rb3D.useGravity == false)
             {
                 rb3D.useGravity = true;
-                Vector3 vel = rb3D.velocity;
+                Vector3 vel = rb3D.linearVelocity;
                 vel.y = speed;
-                rb3D.velocity = vel;
+                rb3D.linearVelocity = vel;
             }
         }
 
@@ -493,21 +493,21 @@ namespace UnityMovementAI
                 {
                     if (canFly)
                     {
-                        return rb3D.velocity;
+                        return rb3D.linearVelocity;
                     }
                     else
                     {
-                        Vector3 dir = rb3D.velocity;
+                        Vector3 dir = rb3D.linearVelocity;
                         dir.y = 0;
 
-                        float mag = Vector3.ProjectOnPlane(rb3D.velocity, movementNormal).magnitude;
+                        float mag = Vector3.ProjectOnPlane(rb3D.linearVelocity, movementNormal).magnitude;
 
                         return dir.normalized * mag;
                     }
                 }
                 else
                 {
-                    return rb2D.velocity;
+                    return rb2D.linearVelocity;
                 }
             }
 
@@ -517,7 +517,7 @@ namespace UnityMovementAI
                 {
                     if (canFly)
                     {
-                        rb3D.velocity = value;
+                        rb3D.linearVelocity = value;
                     }
                     /* Assume the value is given as a vector on the x/z plane for grounded chars*/
                     else
@@ -526,13 +526,13 @@ namespace UnityMovementAI
                          * plane and keep any y movement we already have */
                         if (rb3D.useGravity)
                         {
-                            value.y = rb3D.velocity.y;
-                            rb3D.velocity = value;
+                            value.y = rb3D.linearVelocity.y;
+                            rb3D.linearVelocity = value;
                         }
                         /* Else only move along the ground plane */
                         else
                         {
-                            rb3D.velocity = DirOnPlane(value, movementNormal) * value.magnitude;
+                            rb3D.linearVelocity = DirOnPlane(value, movementNormal) * value.magnitude;
                         }
 
                         LimitMovementOnSteepSlopes();
@@ -540,7 +540,7 @@ namespace UnityMovementAI
                 }
                 else
                 {
-                    rb2D.velocity = value;
+                    rb2D.linearVelocity = value;
                 }
             }
         }
@@ -552,17 +552,17 @@ namespace UnityMovementAI
         {
             get
             {
-                return (is3D) ? rb3D.velocity : (Vector3)rb2D.velocity;
+                return (is3D) ? rb3D.linearVelocity : (Vector3)rb2D.linearVelocity;
             }
             set
             {
                 if (is3D)
                 {
-                    rb3D.velocity = value;
+                    rb3D.linearVelocity = value;
                 }
                 else
                 {
-                    rb2D.velocity = value;
+                    rb2D.linearVelocity = value;
                 }
             }
         }

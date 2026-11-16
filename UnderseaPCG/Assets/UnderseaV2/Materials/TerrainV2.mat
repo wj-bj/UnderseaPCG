@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: TerrainV2
+  m_Shader: {fileID: 4800000, guid: 91837987b1d93c840976a2bff2cbdfbb, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _RockNormal:
+        m_Texture: {fileID: 2800000, guid: abf4a9c50e7cfc14c8c0a39593ea43b7, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _RockTex:
+        m_Texture: {fileID: 2800000, guid: 8a8c3252fe277714d872cf278f53d157, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SandNormal:
+        m_Texture: {fileID: 2800000, guid: 8009d37513ce5b2449da865a03f13d63, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _SandTex:
+        m_Texture: {fileID: 2800000, guid: c204a7bb09bf8714693a3bc0401cbd88, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AlgaeAmount: 0.45
+    - _BlendNoise: 0.18
+    - _CreviceDarkening: 0.5
+    - _MacroVariation: 0.35
+    - _RockNormalStrength: 1
+    - _RockScale: 0.18
+    - _SandNormalStrength: 0.8
+    - _SandScale: 0.25
+    - _SlopeEnd: 0.82
+    - _SlopeStart: 0.62
+    - _Smoothness: 0.12
+    m_Colors:
+    - _AlgaeColor: {r: 0.27999997, g: 0.41999996, b: 0.19999996, a: 1}
+    - _RockTint: {r: 0.62, g: 0.6399999, b: 0.65999997, a: 1}
+    - _SandTint: {r: 1, g: 0.96, b: 0.86, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

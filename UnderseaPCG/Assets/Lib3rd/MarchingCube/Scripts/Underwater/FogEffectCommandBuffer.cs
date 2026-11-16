@@ -39,14 +39,18 @@ public class FogEffectCommandBuffer : MonoBehaviour
 
     {
 
-        Camera.main.RemoveCommandBuffer(CameraEvent.AfterSkybox, commandBuffer);
+        if (commandBuffer == null) return;
+        if (Camera.main != null) Camera.main.RemoveCommandBuffer(CameraEvent.AfterSkybox, commandBuffer);
         commandBuffer.Clear();
+        commandBuffer = null;
 
     }
     
     void OnEnable()
     {
-        
+        // Camera command buffers are a Built-in pipeline feature; under URP/HDRP this effect is inactive.
+        if (GraphicsSettings.currentRenderPipeline != null) return;
+
         //申请RT
       
         commandBuffer = new CommandBuffer();

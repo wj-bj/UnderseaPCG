@@ -1,0 +1,136 @@
+// Scatters plant instances over the terrain triangles on the GPU.
+// One dispatch per vegetation layer; each thread handles one triangle.
+#pragma kernel Scatter
+
+struct Instance
+{
+    float3 position;
+    float scale;
+    float3 up;        // direction the plant grows along
+    float rotation;   // radians around 'up'
+    float4 random;    // per-instance random values in 0..1
+};
+
+StructuredBuffer<float3> _Vertices;   // 3 per triangle, world space
+StructuredBuffer<float3> _Normals;    // 3 per triangle
+StructuredBuffer<float> _ReefMask;    // _MapSize.x * _MapSize.y cells, 1 = reef zone
+AppendStructuredBuffer<Instance> _Output;
+
+uint _TriangleCount;
+float _Density;          // instances per square metre
+float2 _SlopeRange;      // allowed normal.y range
+float2 _HeightRange;     // allowed world y range
+float2 _ScaleRange;
+float _NoiseScale;       // clump size: larger value = smaller patches
+float _NoiseThreshold;   // 0 = everywhere, towards 1 = only in the densest patches
+float _ReefMode;         // 0 ignore, 1 only inside reef zones, -1 only outside
+float _AlignToNormal;    // 0 = grow straight up, 1 = grow along the surface normal
+float _Seed;
+float _PatchSeed;       // layers sharing this value grow in the same patches
+int2 _MapSize;
+float2 _MapOrigin;       // world xz of map cell (0, 0)
+
+uint Hash(uint x)
+{
+    x ^= x >> 16; x *= 0x7feb352dU;
+    x ^= x >> 15; x *= 0x846ca68bU;
+    x ^= x >> 16;
+    return x;
+}
+
+float Rand(inout uint state)
+{
+    state = Hash(state);
+    return (state & 0x00ffffffU) / 16777216.0;
+}
+
+float Hash21(float2 p)
+{
+    float3 p3 = frac(float3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return frac((p3.x + p3.y) * p3.z);
+}
+
+float Noise2(float2 p)
+{
+    float2 i = floor(p);
+    float2 f = frac(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return lerp(lerp(Hash21(i), Hash21(i + float2(1, 0)), f.x),
+                lerp(Hash21(i + float2(0, 1)), Hash21(i + float2(1, 1)), f.x), f.y);
+}
+
+float ReefAt(float2 xz)
+{
+    int2 cell = int2(floor(xz - _MapOrigin));
+    if (cell.x < 0 || cell.y < 0 || cell.x >= _MapSize.x || cell.y >= _MapSize.y)
+        return 0.0;
+    return _ReefMask[cell.y * _MapSize.x + cell.x];
+}
+
+[numthreads(64, 1, 1)]
+void Scatter (uint3 id : SV_DispatchThreadID)
+{
+    uint tri = id.x;
+    if (tri >= _TriangleCount)
+        return;
+
+    float3 v0 = _Vertices[tri * 3];
+    float3 v1 = _Vertices[tri * 3 + 1];
+    float3 v2 = _Vertices[tri * 3 + 2];
+    float3 n0 = _Normals[tri * 3];
+    float3 n1 = _Normals[tri * 3 + 1];
+    float3 n2 = _Normals[tri * 3 + 2];
+
+    float area = 0.5 * length(cross(v1 - v0, v2 - v0));
+    uint state = Hash(tri * 747796405U + (uint)(_Seed * 7919.0) + 2891336453U);
+
+    // Expected number of plants on this triangle; the fraction is resolved randomly
+    // so small triangles still get their fair share.
+    float expected = area * _Density;
+    int count = (int)floor(expected);
+    if (Rand(state) < frac(expected))
+        count++;
+    count = min(count, 16);
+
+    for (int i = 0; i < count; i++)
+    {
+        float r1 = Rand(state);
+        float r2 = Rand(state);
+        float s = sqrt(r1);
+        float3 bary = float3(1.0 - s, s * (1.0 - r2), s * r2);
+
+        float3 pos = v0 * bary.x + v1 * bary.y + v2 * bary.z;
+        float3 nrm = normalize(n0 * bary.x + n1 * bary.y + n2 * bary.z);
+
+        float4 rnd = float4(Rand(state), Rand(state), Rand(state), Rand(state));
+        float rotation = Rand(state) * 6.2831853;
+        float scaleT = Rand(state);
+
+        if (nrm.y < _SlopeRange.x || nrm.y > _SlopeRange.y)
+            continue;
+        if (pos.y < _HeightRange.x || pos.y > _HeightRange.y)
+            continue;
+
+        float clump = Noise2(pos.xz * _NoiseScale + _PatchSeed * 17.3) * 0.65
+                    + Noise2(pos.xz * _NoiseScale * 2.7 + _PatchSeed * 5.1) * 0.35;
+        if (clump < _NoiseThreshold)
+            continue;
+
+        float reef = ReefAt(pos.xz);
+        if (_ReefMode > 0.5 && reef < 0.5)
+            continue;
+        if (_ReefMode < -0.5 && reef > 0.5)
+            continue;
+
+        Instance inst;
+        inst.position = pos;
+        // Plants in the middle of a clump grow a little larger than those at its edge.
+        float clumpBoost = saturate((clump - _NoiseThreshold) * 3.0);
+        inst.scale = lerp(_ScaleRange.x, _ScaleRange.y, scaleT * (0.6 + 0.4 * clumpBoost));
+        inst.up = normalize(lerp(float3(0, 1, 0), nrm, _AlignToNormal));
+        inst.rotation = rotation;
+        inst.random = rnd;
+        _Output.Append(inst);
+    }
+}

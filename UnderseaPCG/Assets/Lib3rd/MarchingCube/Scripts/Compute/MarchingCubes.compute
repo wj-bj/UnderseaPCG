@@ -7,6 +7,9 @@ struct Triangle {
     float3 vertexC;
     float3 vertexB;
     float3 vertexA;
+    float3 normalC;
+    float3 normalB;
+    float3 normalA;
 };
 
 AppendStructuredBuffer<Triangle> triangles;
@@ -23,6 +26,33 @@ float3 interpolateVerts(float4 v1, float4 v2) {
 int indexFromCoord(int x, int y, int z) {
     return z * numPointsPerAxis * numPointsPerAxis + y * numPointsPerAxis + x;
 }
+// Grid offsets of the 8 cube corners, in the same order as cubeCorners below.
+static const int3 cornerOffsets[8] = {
+    int3(0, 0, 0), int3(1, 0, 0), int3(1, 0, 1), int3(0, 0, 1),
+    int3(0, 1, 0), int3(1, 1, 0), int3(1, 1, 1), int3(0, 1, 1)
+};
+
+float densityAt(int3 c) {
+    c = clamp(c, 0, numPointsPerAxis - 1);
+    return points[indexFromCoord(c.x, c.y, c.z)].w;
+}
+
+// Density gradient by central differences. Density is higher inside the terrain,
+// so the surface normal is the negated gradient.
+float3 gradientAt(int3 c) {
+    return float3(
+        densityAt(c + int3(1, 0, 0)) - densityAt(c - int3(1, 0, 0)),
+        densityAt(c + int3(0, 1, 0)) - densityAt(c - int3(0, 1, 0)),
+        densityAt(c + int3(0, 0, 1)) - densityAt(c - int3(0, 0, 1)));
+}
+
+float3 interpolateNormal(int3 id, int cornerA, int cornerB, float4 v1, float4 v2) {
+    float t = (isoLevel - v1.w) / (v2.w - v1.w);
+    float3 g = lerp(gradientAt(id + cornerOffsets[cornerA]), gradientAt(id + cornerOffsets[cornerB]), t);
+    float len = length(g);
+    return len > 1e-6 ? -g / len : float3(0, 1, 0);
+}
+
 [numthreads(numThreads,numThreads,numThreads)]
 void March (int3 id : SV_DispatchThreadID)
 {   
@@ -74,6 +104,9 @@ void March (int3 id : SV_DispatchThreadID)
         tri.vertexA = interpolateVerts(cubeCorners[a0], cubeCorners[b0]);
         tri.vertexB = interpolateVerts(cubeCorners[a1], cubeCorners[b1]);
         tri.vertexC = interpolateVerts(cubeCorners[a2], cubeCorners[b2]);
+        tri.normalA = interpolateNormal(id, a0, b0, cubeCorners[a0], cubeCorners[b0]);
+        tri.normalB = interpolateNormal(id, a1, b1, cubeCorners[a1], cubeCorners[b1]);
+        tri.normalC = interpolateNormal(id, a2, b2, cubeCorners[a2], cubeCorners[b2]);
         triangles.Append(tri);
     }
 

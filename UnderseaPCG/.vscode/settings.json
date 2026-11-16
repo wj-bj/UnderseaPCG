@@ -51,5 +51,5 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "UnderseaPCG.sln"
+    "dotnet.defaultSolution": "UnderseaPCG.slnx"
 }

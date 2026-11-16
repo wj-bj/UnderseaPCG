@@ -1,0 +1,311 @@
+// Multi-species fish schooling on the GPU.
+// Neighbours are found through a uniform grid instead of testing every pair, and the
+// terrain is avoided by reading the same density field the marching-cubes mesh came from.
+#pragma kernel ClearGrid
+#pragma kernel BuildGrid
+#pragma kernel Simulate
+#pragma kernel CopyDensity
+
+struct Fish
+{
+    float3 position;
+    float speed;
+    float3 direction;
+    float phase;      // tail-beat phase, advanced by swimming speed
+    uint species;
+    float size;
+    float2 random;
+};
+
+struct Species
+{
+    float speedMin;
+    float speedMax;
+    float neighbourRadius;
+    float separationRadius;
+    float cohesion;
+    float alignment;
+    float separation;
+    float turnRate;
+    float yMin;
+    float yMax;
+    float fleeRadius;
+    float isPredator;
+    float tailFrequency;
+    float wander;
+    float2 pad;
+};
+
+#define CELL_CAPACITY 24
+#define MAX_THREATS 4
+
+StructuredBuffer<Fish> _FishIn;
+RWStructuredBuffer<Fish> _FishOut;
+StructuredBuffer<Species> _Species;
+RWStructuredBuffer<uint> _GridCount;   // fish in each cell
+RWStructuredBuffer<uint> _GridSlots;   // CELL_CAPACITY fish indices per cell
+
+uint _FishCount;
+float _DeltaTime;
+float _SimTime;
+float3 _BoundsMin;
+float3 _BoundsMax;
+float _CellSize;
+int3 _GridDim;
+float _WaterLevel;
+float4 _Threats[MAX_THREATS];   // xyz = position, w = radius (0 = unused)
+
+// Terrain density field (one value per marching-cubes grid point).
+StructuredBuffer<float4> _TerrainPoints;
+RWStructuredBuffer<float> _DensityOut;
+StructuredBuffer<float> _Density;
+int _DensitySize;        // points per axis
+float3 _DensityOrigin;   // world position of grid point (0,0,0)
+float _DensitySpacing;
+float _IsoLevel;
+float _HasDensity;
+
+int3 CellOf(float3 p)
+{
+    return clamp(int3(floor((p - _BoundsMin) / _CellSize)), int3(0, 0, 0), _GridDim - 1);
+}
+
+uint CellIndex(int3 c)
+{
+    return (uint)(c.x + _GridDim.x * (c.y + _GridDim.y * c.z));
+}
+
+[numthreads(64, 1, 1)]
+void ClearGrid (uint3 id : SV_DispatchThreadID)
+{
+    uint cells = (uint)(_GridDim.x * _GridDim.y * _GridDim.z);
+    if (id.x < cells)
+        _GridCount[id.x] = 0;
+}
+
+[numthreads(64, 1, 1)]
+void BuildGrid (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _FishCount)
+        return;
+    uint cell = CellIndex(CellOf(_FishIn[id.x].position));
+    uint slot;
+    InterlockedAdd(_GridCount[cell], 1, slot);
+    if (slot < CELL_CAPACITY)
+        _GridSlots[cell * CELL_CAPACITY + slot] = id.x;
+}
+
+[numthreads(64, 1, 1)]
+void CopyDensity (uint3 id : SV_DispatchThreadID)
+{
+    uint total = (uint)(_DensitySize * _DensitySize * _DensitySize);
+    if (id.x < total)
+        _DensityOut[id.x] = _TerrainPoints[id.x].w;
+}
+
+float DensityAt(int3 c)
+{
+    if (any(c < 0) || any(c >= _DensitySize))
+        return -10.0;   // outside the generated terrain: open water
+    return _Density[c.z * _DensitySize * _DensitySize + c.y * _DensitySize + c.x];
+}
+
+// Trilinear terrain density at a world position. Above _IsoLevel is solid.
+float SampleDensity(float3 p)
+{
+    float3 g = (p - _DensityOrigin) / _DensitySpacing;
+    int3 c = int3(floor(g));
+    float3 f = g - c;
+    float d000 = DensityAt(c);
+    float d100 = DensityAt(c + int3(1, 0, 0));
+    float d010 = DensityAt(c + int3(0, 1, 0));
+    float d110 = DensityAt(c + int3(1, 1, 0));
+    float d001 = DensityAt(c + int3(0, 0, 1));
+    float d101 = DensityAt(c + int3(1, 0, 1));
+    float d011 = DensityAt(c + int3(0, 1, 1));
+    float d111 = DensityAt(c + int3(1, 1, 1));
+    return lerp(lerp(lerp(d000, d100, f.x), lerp(d010, d110, f.x), f.y),
+                lerp(lerp(d001, d101, f.x), lerp(d011, d111, f.x), f.y), f.z);
+}
+
+// Approximate distance in metres from p to the terrain surface (negative inside rock),
+// and the direction that leads away from it. The density values themselves are not
+// distances (the map mask rescales them), so the distance is density / gradient.
+float TerrainDistance(float3 p, out float3 escape)
+{
+    float e = _DensitySpacing;
+    float d = SampleDensity(p);
+    float3 grad = float3(SampleDensity(p + float3(e, 0, 0)) - d,
+                         SampleDensity(p + float3(0, e, 0)) - d,
+                         SampleDensity(p + float3(0, 0, e)) - d) / e;
+    float len = length(grad);
+    escape = len > 1e-4 ? -grad / len : float3(0, 1, 0);
+    return clamp((_IsoLevel - d) / max(len, 0.05), -5.0, 50.0);
+}
+
+[numthreads(64, 1, 1)]
+void Simulate (uint3 id : SV_DispatchThreadID)
+{
+    uint i = id.x;
+    if (i >= _FishCount)
+        return;
+
+    Fish f = _FishIn[i];
+    Species sp = _Species[f.species];
+
+    float3 sep = 0;
+    float3 ali = 0;
+    float3 centre = 0;
+    float3 flee = 0;
+    float3 preyDir = 0;
+    float preyDist = 1e9;
+    int mates = 0;
+
+    int3 cell = CellOf(f.position);
+    for (int dz = -1; dz <= 1; dz++)
+    for (int dy = -1; dy <= 1; dy++)
+    for (int dx = -1; dx <= 1; dx++)
+    {
+        int3 c = cell + int3(dx, dy, dz);
+        if (any(c < 0) || any(c >= _GridDim))
+            continue;
+        uint ci = CellIndex(c);
+        uint count = min(_GridCount[ci], (uint)CELL_CAPACITY);
+        for (uint s = 0; s < count; s++)
+        {
+            uint j = _GridSlots[ci * CELL_CAPACITY + s];
+            if (j == i)
+                continue;
+            Fish o = _FishIn[j];
+            float3 d = f.position - o.position;
+            float dist = length(d);
+            if (dist < 1e-4)
+                continue;
+            float3 away = d / dist;
+
+            if (o.species == f.species)
+            {
+                if (dist < sp.neighbourRadius)
+                {
+                    ali += o.direction;
+                    centre += o.position;
+                    mates++;
+                }
+                if (dist < sp.separationRadius)
+                    sep += away * (1.0 - dist / sp.separationRadius);
+            }
+            else
+            {
+                Species os = _Species[o.species];
+                // Different species keep out of each other's way.
+                float personal = 0.5 * (f.size + o.size) + 0.3;
+                if (dist < personal)
+                    sep += away * (1.0 - dist / personal);
+                if (os.isPredator > 0.5 && sp.isPredator < 0.5 && dist < sp.fleeRadius)
+                    flee += away * (1.0 - dist / sp.fleeRadius);
+                if (sp.isPredator > 0.5 && os.isPredator < 0.5 && dist < preyDist)
+                {
+                    preyDist = dist;
+                    preyDir = -away;
+                }
+            }
+        }
+    }
+
+    float3 steer = 0;
+    if (mates > 0)
+    {
+        float3 toCentre = centre / mates - f.position;
+        float len = length(toCentre);
+        if (len > 1e-4)
+            steer += toCentre / len * sp.cohesion;
+        steer += normalize(ali / mates + f.direction * 1e-3) * sp.alignment;
+    }
+    steer += sep * sp.separation;
+    steer += flee * 6.0;
+    if (preyDist < 1e8)
+        steer += preyDir * 1.2;
+
+    // Divers, submarine and other large things: get out of the way.
+    for (int t = 0; t < MAX_THREATS; t++)
+    {
+        float radius = _Threats[t].w;
+        if (radius <= 0.0)
+            continue;
+        float3 d = f.position - _Threats[t].xyz;
+        float dist = length(d);
+        if (dist < radius && dist > 1e-4)
+        {
+            float push = 1.0 - dist / radius;
+            flee += d / dist * push;
+            steer += d / dist * push * 5.0;
+        }
+    }
+
+    // Slow, smooth wandering so a lone fish or a whole school does not travel dead straight.
+    float w = _SimTime * 0.35 + f.random.x * 50.0;
+    steer += float3(sin(w * 1.3 + f.random.y * 6.0), sin(w * 0.7) * 0.3, cos(w + f.random.y * 4.0)) * sp.wander;
+
+    // Stay inside the play area and inside the species' depth band.
+    float margin = 7.0;
+    float3 lo = _BoundsMin + margin;
+    float3 hi = _BoundsMax - margin;
+    steer.x += min(max(lo.x - f.position.x, 0.0) * 1.5, 9.0) - min(max(f.position.x - hi.x, 0.0) * 1.5, 9.0);
+    steer.z += min(max(lo.z - f.position.z, 0.0) * 1.5, 9.0) - min(max(f.position.z - hi.z, 0.0) * 1.5, 9.0);
+    // The pull grows with how far the fish has strayed, so a whole school carried by its
+    // own momentum still turns back before reaching the surface or the seabed band.
+    float top = min(sp.yMax, _WaterLevel - 0.8);
+    float over = f.position.y - top;
+    float under = sp.yMin - f.position.y;
+    steer.y += min(max(under, 0.0) * 2.5, 8.0) - min(max(over, 0.0) * 2.5, 8.0);
+
+    // Terrain: look ahead along the swimming direction and turn away before reaching rock.
+    float inside = 0.0;
+    if (_HasDensity > 0.5)
+    {
+        float clearance = 0.6 + f.size * 0.5;
+        float lookAhead = 1.0 + f.speed * 0.9 + f.size;
+        float3 escape;
+        float distAhead = TerrainDistance(f.position + f.direction * lookAhead, escape);
+        float warn = clearance + 1.2;
+        if (distAhead < warn)
+        {
+            float urgency = saturate(1.0 - distAhead / warn);
+            steer += escape * (2.0 + 8.0 * urgency);
+        }
+        float distHere = TerrainDistance(f.position, escape);
+        if (distHere < clearance)
+        {
+            // Too close or already inside: push straight out as well as steering.
+            inside = saturate(1.0 - distHere / clearance);
+            steer += escape * 10.0 * inside;
+            f.position += escape * inside * 2.5 * _DeltaTime;
+        }
+    }
+
+    float3 desired = normalize(f.direction + steer * 0.35);
+    float turn = saturate(sp.turnRate * (1.0 + 2.0 * saturate(length(flee)) + 2.0 * inside) * _DeltaTime);
+    float3 dir = normalize(lerp(f.direction, desired, turn));
+    // Fish rarely swim steeply up or down.
+    dir.y = clamp(dir.y, -0.55, 0.55);
+    // Outside its depth band a fish may level off or head back, but not keep going.
+    if (over > 0.0)
+        dir.y = min(dir.y, 0.15 - 0.45 * saturate(over));
+    if (under > 0.0 && inside < 0.01)
+        dir.y = max(dir.y, -0.15 + 0.45 * saturate(under));
+    dir = normalize(dir);
+
+    float cruise = lerp(sp.speedMin, sp.speedMax, 0.5 + 0.5 * sin(_SimTime * 0.4 + f.random.x * 6.2831853));
+    float targetSpeed = cruise * (1.0 + 1.6 * saturate(length(flee)));
+    if (sp.isPredator > 0.5 && preyDist < 1e8)
+        targetSpeed = sp.speedMax * 1.4;
+    float speed = lerp(f.speed, targetSpeed, saturate(2.5 * _DeltaTime));
+
+    f.direction = dir;
+    f.speed = speed;
+    f.position += dir * speed * _DeltaTime;
+    f.position = clamp(f.position, _BoundsMin + 0.5, float3(_BoundsMax.x - 0.5, _WaterLevel - 0.6, _BoundsMax.z - 0.5));
+    f.phase = fmod(f.phase + _DeltaTime * sp.tailFrequency * (0.4 + speed / max(sp.speedMax, 0.01)), 6.2831853 * 16.0);
+
+    _FishOut[i] = f;
+}
