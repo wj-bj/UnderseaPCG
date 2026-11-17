@@ -58,13 +58,21 @@
 - `Scripts/FishSchoolSystem.cs`：鱼种配置（`FishSpecies` 列表）、缓冲管理和绘制。只在 Play 模式下模拟。`FollowTarget` 是一个用异步读回跟踪某条鱼的 Transform，UI 的 Fish 相机视角用它。`Diagnose()` 会读回全部鱼做统计，只用于调试。
 - `Shaders/FishV2.shader`：同一个网格（`Assets/Lib3rd/Fish/Models/fish_modified.fbx`，工程里唯一的鱼模型）按鱼种改体型比例、背腹配色、条纹和反光。
 - 现有 6 个鱼种共 2244 条：沙丁鱼 1400、蓝色乌尾鮗 320、黄色刺尾鱼 260、条纹礁鱼 220、梭鱼 40、礁鲨 4（捕食者）。
-- 旧的 `Fish.prefab`（`FishFlocking`，128 条）已从新场景的 `AgentGenerator.agents` 里移除。美人鱼、潜水员、宝物仍由 `AgentGenerator` 生成，用 NPBehave 行为树和 UnityMovementAI 的 steering。
+- 旧的 `Fish.prefab`（`FishFlocking`，128 条）已从新场景的 `AgentGenerator.agents` 里移除。美人鱼（新场景用 `Mermaid_V2` 变体，见下）、潜水员、宝物仍由 `AgentGenerator` 生成，用 NPBehave 行为树和 UnityMovementAI 的 steering。
+
+### 美人鱼
+
+- `Scripts/MermaidBehaviourV2.cs`：新场景的美人鱼行为，挂在预制体变体 `Prefabs/Mermaid_V2.prefab` 上（原 `Assets/Prefabs/Mermaid_prefab.prefab` 没动，旧场景仍用它）。它在 `Awake` 里把 `MermaidMoveUnit.externalControl` 置为 true 并禁用 `MermaidBTController`，自己用 NPBehave 行为树加一个小的运动控制器接管。`MermaidMoveUnit` 必须留在物体上：UI 的 Mermaid 视角和宝物的触发器都靠它找美人鱼。
+- 行为优先级：躲鲨鱼（`Flee`，之后回头张望）> 追宝物（追到后转圈庆祝，15 秒内不再追）> 空闲活动。空闲活动按 `weights` 随机挑，不连续重复：巡游、悬停休息、翻滚嬉戏（桶滚 + 空翻）、螺旋上浮到水面再俯冲、绕鱼群共游、探望并绕潜水员、贴海底滑行。
+- 模型只有两段动画（`idle_fix` 和 `Foward`，由 Animator 的 `IsSeek` 切换）。俯仰、转弯侧倾、桶滚、空翻、悬停浮动都是程序化的，加在带 Animator 的子物体 `Mermaid_mesh` 上；根物体只绕 Y 轴转，朝向是 `transform.right`。**idle 动画本身已近乎直立**，悬停时不要再叠加大的 `posePitch`。
+- 鲨鱼和鱼群的位置来自 `FishSchoolSystem` 的异步快照（`EnableSnapshot()` 后每 0.4 秒读回一次全部鱼）：`NearestPredator`、`FindSchool`、`TrackSchool`。
+- 调试：`Report()` 返回当前状态，`Force(Activity)` 立刻切到某个空闲活动（会屏蔽追宝物和躲鲨鱼 20 秒）。
 
 ## 搭建脚本
 
 `Assets/UnderseaV2/Editor/UnderseaV2Setup.cs` 里的静态方法可以重复执行，用来创建或修复新场景的配置，都返回一段文字报告：
 
-`SetupRenderer()` → `CreateScene()` → `SetupTerrain(pointsPerAxis)` → `SetupWater()` → `SetupVegetation()` → `SetupFish()`，另有 `Regenerate()` 在编辑模式下重建地图、地形和植被。
+`SetupRenderer()` → `CreateScene()` → `SetupTerrain(pointsPerAxis)` → `SetupWater()` → `SetupVegetation()` → `SetupFish()` → `SetupMermaid()`，另有 `Regenerate()` 在编辑模式下重建地图、地形和植被。
 
 **注意**：`SetupVegetation()` 和 `SetupFish()` 会用代码里的默认值覆盖场景里的层和鱼种列表。如果用户在 Inspector 里调过参数，重新执行会丢失这些调整；要改默认值就改这个脚本。
 
@@ -78,6 +86,7 @@
 
 - `Assets/Lib3rd/MarchingCube/Scripts/Compute/MarchingCubes.compute`：三角形结构体多了三个法线（由密度梯度算出）。C# 端的缓冲 stride 是 18 个 float，两边必须一致。
 - `Assets/Scripts/Generator/MeshGenerator.cs`：新增 `gradientNormals`、`smoothMask` 两个开关（默认关），`MeshesUpdated` 事件，`PointsBuffer` 只读访问器（密度场，只在 Play 模式有效）。
+- `Assets/Scripts/Agent/MermaidMoveUnit.cs`：新增 `externalControl` 开关（默认关），打开后它不再驱动运动。
 - `Assets/Scripts/Others/UIController.cs`：Fish 相机视角找不到 `FishMoveUnit` 时改用 `FishSchoolSystem.FollowTarget`。
 - `Assets/Lib3rd/MarchingCube/Scripts/Underwater/FogEffectCommandBuffer.cs`：在 SRP 下直接跳过。
 - URP 迁移时原地重写成 URP HLSL 的 shader（shader 名没变）：`Custom/Terrain`、`Custom/FishAnimation`、`Custome/water2`（有两份相同的文件，材质引用的是 `Assets/Lib3rd/Fish/Shaders/Underwater/WaterSurface2.shader`）。

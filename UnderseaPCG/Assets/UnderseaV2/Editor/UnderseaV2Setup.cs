@@ -506,6 +506,65 @@ public static class UnderseaV2Setup
         return sb.ToString();
     }
 
+    // Creates a variant of the mermaid prefab that carries MermaidBehaviourV2 and makes this
+    // scene spawn it instead of the original. The original prefab is left untouched.
+    public static string SetupMermaid()
+    {
+        var sb = new StringBuilder();
+        var scene = EditorSceneManager.GetActiveScene();
+        if (scene.path != ScenePath) return "open " + ScenePath + " first";
+
+        const string basePath = "Assets/Prefabs/Mermaid_prefab.prefab";
+        const string variantPath = Root + "/Prefabs/Mermaid_V2.prefab";
+        var basePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(basePath);
+        if (basePrefab == null) return "mermaid prefab not found";
+
+        EnsureFolder(Root, "Prefabs");
+        var variant = AssetDatabase.LoadAssetAtPath<GameObject>(variantPath);
+        if (variant == null)
+        {
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(basePrefab);
+            instance.AddComponent<MermaidBehaviourV2>();
+            variant = PrefabUtility.SaveAsPrefabAsset(instance, variantPath);
+            Object.DestroyImmediate(instance);
+            sb.AppendLine("created " + variantPath);
+        }
+        else if (variant.GetComponent<MermaidBehaviourV2>() == null)
+        {
+            var contents = PrefabUtility.LoadPrefabContents(variantPath);
+            contents.AddComponent<MermaidBehaviourV2>();
+            PrefabUtility.SaveAsPrefabAsset(contents, variantPath);
+            PrefabUtility.UnloadPrefabContents(contents);
+            variant = AssetDatabase.LoadAssetAtPath<GameObject>(variantPath);
+            sb.AppendLine("added MermaidBehaviourV2 to " + variantPath);
+        }
+
+        var agents = Object.FindAnyObjectByType<AgentGenerator>();
+        if (agents == null || agents.agents == null) return sb + "no AgentGenerator in scene";
+        bool found = false;
+        for (int i = 0; i < agents.agents.Length; i++)
+        {
+            var prefab = agents.agents[i];
+            if (prefab == null || prefab.GetComponent<MermaidMoveUnit>() == null) continue;
+            found = true;
+            if (prefab == variant) continue;
+            agents.agents[i] = variant;
+            sb.AppendLine("spawn list: " + prefab.name + " -> " + variant.name);
+        }
+        if (!found)
+        {
+            var list = new System.Collections.Generic.List<GameObject>(agents.agents) { variant };
+            agents.agents = list.ToArray();
+            sb.AppendLine("spawn list: added " + variant.name);
+        }
+        EditorUtility.SetDirty(agents);
+        AssetDatabase.SaveAssets();
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene);
+        sb.AppendLine("mermaid ready");
+        return sb.ToString();
+    }
+
     // Rebuilds map, terrain and decorations in edit mode.
     public static string Regenerate()
     {

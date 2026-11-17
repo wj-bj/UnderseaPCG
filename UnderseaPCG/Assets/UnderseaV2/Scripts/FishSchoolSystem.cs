@@ -123,6 +123,76 @@ public class FishSchoolSystem : MonoBehaviour
         }
     }
 
+    // Low-rate asynchronous copy of all fish, for gameplay code that needs to know where
+    // schools and predators are (the mermaid). Nothing is read back until EnableSnapshot is called.
+    public float snapshotInterval = 0.4f;
+    Fish[] snapshot;
+    bool snapshotWanted, snapshotPending;
+    float nextSnapshot;
+
+    public void EnableSnapshot() { snapshotWanted = true; }
+    public bool HasSnapshot => snapshot != null;
+
+    bool IsPredator(uint speciesIndex) => speciesIndex < species.Count && species[(int)speciesIndex].isPredator;
+
+    public bool NearestPredator(Vector3 from, out Vector3 position, out float distance)
+    {
+        position = Vector3.zero; distance = float.MaxValue;
+        if (snapshot == null) return false;
+        float best = float.MaxValue;
+        foreach (var f in snapshot)
+        {
+            if (!IsPredator(f.species)) continue;
+            float d = (f.position - from).sqrMagnitude;
+            if (d < best) { best = d; position = f.position; }
+        }
+        if (best == float.MaxValue) return false;
+        distance = Mathf.Sqrt(best);
+        return true;
+    }
+
+    // Centre of the densest group of prey fish within maxRange of a point.
+    public bool FindSchool(Vector3 from, float maxRange, float radius, out Vector3 centre)
+    {
+        centre = Vector3.zero;
+        if (snapshot == null) return false;
+        float bestScore = 0f; Vector3 bestSeed = Vector3.zero;
+        float r2 = radius * radius;
+        for (int i = 0; i < snapshot.Length; i += 16)
+        {
+            var seed = snapshot[i];
+            if (IsPredator(seed.species)) continue;
+            float dist = Vector3.Distance(seed.position, from);
+            if (dist > maxRange) continue;
+            int count = 0;
+            foreach (var f in snapshot)
+                if (!IsPredator(f.species) && (f.position - seed.position).sqrMagnitude < r2) count++;
+            float score = count / (1f + dist / maxRange);
+            if (score > bestScore) { bestScore = score; bestSeed = seed.position; }
+        }
+        if (bestScore < 8f) return false;
+        Vector3 heading;
+        return TrackSchool(bestSeed, radius, out centre, out heading);
+    }
+
+    // Mean position and heading of the prey fish near a previously found centre.
+    public bool TrackSchool(Vector3 lastCentre, float radius, out Vector3 centre, out Vector3 heading)
+    {
+        centre = lastCentre; heading = Vector3.forward;
+        if (snapshot == null) return false;
+        float r2 = radius * radius;
+        Vector3 sum = Vector3.zero, dir = Vector3.zero; int n = 0;
+        foreach (var f in snapshot)
+        {
+            if (IsPredator(f.species) || (f.position - lastCentre).sqrMagnitude > r2) continue;
+            sum += f.position; dir += f.direction; n++;
+        }
+        if (n < 4) return false;
+        centre = sum / n;
+        if (dir.sqrMagnitude > 1e-6f) heading = dir.normalized;
+        return true;
+    }
+
     public int FishCount => fishCount;
     public bool HasTerrainField => hasDensity;
 
@@ -146,6 +216,7 @@ public class FishSchoolSystem : MonoBehaviour
         fishA = fishB = speciesBuffer = lookBuffer = gridCount = gridSlots = densityBuffer = args = null;
         initialised = false;
         hasDensity = false;
+        snapshot = null;
     }
 
     float WaterLevel => environment != null ? environment.WaterLevel : 11f;
@@ -369,6 +440,20 @@ public class FishSchoolSystem : MonoBehaviour
                 var f = request.GetData<Fish>()[0];
                 followTarget.position = f.position;
                 if (f.direction.sqrMagnitude > 1e-6f) followTarget.rotation = Quaternion.LookRotation(f.direction, Vector3.up);
+            });
+        }
+
+        if (snapshotWanted && !snapshotPending && Time.time >= nextSnapshot)
+        {
+            snapshotPending = true;
+            nextSnapshot = Time.time + snapshotInterval;
+            AsyncGPUReadback.Request(fishA, request =>
+            {
+                snapshotPending = false;
+                if (request.hasError || !initialised) return;
+                var data = request.GetData<Fish>();
+                if (snapshot == null || snapshot.Length != data.Length) snapshot = new Fish[data.Length];
+                data.CopyTo(snapshot);
             });
         }
     }

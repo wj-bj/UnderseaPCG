@@ -13,6 +13,10 @@ public class MermaidMoveUnit : MonoBehaviour
         public SteerType steerType = SteerType.Default;
         public MovementAIRigidbody target;
 
+        // When set, another component (MermaidBehaviourV2) drives the movement and this
+        // one only stays on the object so the UI and the loot can still find the mermaid.
+        public bool externalControl = false;
+
 
 
         SteeringBasics steeringBasics;
@@ -43,6 +47,7 @@ public class MermaidMoveUnit : MonoBehaviour
 
         void FixedUpdate()
         {
+            if (externalControl) return;
           
             switch (steerType)
             {
